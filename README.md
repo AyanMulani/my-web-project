@@ -17,8 +17,7 @@ Important:
   2. .\\venv\\Scripts\\Activate
   3. pip install -r requirements.txt
   4. python app.py
-  5. Visit: http://127.0.0.1:5000/init-db to create admin/sample data (admin/admin)
-  6. Login: http://127.0.0.1:5000/login (admin/admin)
+  
 
 Files:
 - app.py

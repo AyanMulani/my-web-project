@@ -1,0 +1,7 @@
+body{font-family:Segoe UI, Arial, sans-serif;background:linear-gradient(180deg,#eef3f6,#f7fafc);}
+.navbar{background:#2f5566!important}
+.container{max-width:1180px;margin:18px auto}
+.card-header{background:#1f424f;color:#fff;font-weight:700}
+#receipt_area{min-height:200px;border:1px solid #e6e9ed;padding:10px;background:#fff}
+.calculator .btn{width:100%}
+#calc_screen{height:36px;margin-top:8px}

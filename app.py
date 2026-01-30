@@ -16,15 +16,15 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-hr-key')
 
-# ------------------ DATABASE CONFIG (IMPORTANT CHANGE) ------------------
+# ------------------ DATABASE CONFIG (RENDER SAFE) ------------------
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# Fix for Render postgres URL
+# Fix old postgres:// URLs if any
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Use PostgreSQL on Render, SQLite locally
+# PostgreSQL on Render, SQLite locally
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or 'sqlite:///payroll_hr.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -44,7 +44,7 @@ class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(50), default='admin')  # superadmin/admin/hr
+    role = db.Column(db.String(50), default='admin')
 
 class Department(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -54,19 +54,25 @@ class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), unique=True, nullable=False)
 
-# ------------------ CREATE TABLES (ONE TIME) ------------------
-
-with app.app_context():
-    db.create_all()
-
-# ------------------ LOGIN LOADER ------------------
+# ------------------ LOGIN ------------------
 
 @login_manager.user_loader
 def load_user(user_id):
     return Admin.query.get(int(user_id))
 
-# ------------------ BASIC TEST ROUTE ------------------
+# ------------------ ROUTES ------------------
 
 @app.route("/")
 def index():
     return "Payroll HR App is LIVE 🚀"
+
+# OPTIONAL: run once after first successful deploy, then DELETE
+@app.route("/init-db")
+def init_db():
+    db.create_all()
+    return "Database initialized successfully"
+
+# ------------------ MAIN ------------------
+
+if __name__ == "__main__":
+    app.run(debug=True)

@@ -9,6 +9,7 @@ from flask_login import (
     logout_user, login_required, current_user
 )
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
@@ -19,16 +20,20 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
+
+# ✅ TRUST RENDER PROXY (VERY IMPORTANT)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-key")
 
-# 🔴 IMPORTANT: SESSION FIX FOR PRODUCTION (RENDER / HTTPS)
+# ✅ SESSION SETTINGS FOR RENDER
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=True   # REQUIRED on Render
+    SESSION_COOKIE_SECURE=False
 )
 
-# ---------------- DATABASE (RENDER / POSTGRES READY) ----------------
+# ---------------- DATABASE ----------------
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -37,7 +42,6 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL or "sqlite:///payroll_hr.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
 
@@ -137,11 +141,10 @@ def login():
         p = request.form.get("password")
         user = Admin.query.filter_by(username=u).first()
 
-        # 🔴 FIX: remember=True keeps session alive
         if user and user.password_hash == hash_password(p):
             login_user(user, remember=True)
             log_action(user.username, "login")
-            return redirect(url_for("index"))
+            return redirect(request.args.get("next") or url_for("index"))
 
         flash("Invalid credentials", "danger")
 
@@ -154,7 +157,7 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
-# ---------------- INIT DATABASE (RUN ONCE) ----------------
+# ---------------- INIT DB ----------------
 
 @app.route("/init-db")
 def init_db():
@@ -171,7 +174,7 @@ def init_db():
             db.session.commit()
     return "Database initialized"
 
-# ---------------- FILE SERVING ----------------
+# ---------------- FILES ----------------
 
 @app.route("/uploads/<path:filename>")
 def uploads(filename):

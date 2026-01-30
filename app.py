@@ -21,15 +21,20 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-key")
 
+# 🔴 IMPORTANT: SESSION FIX FOR PRODUCTION (RENDER / HTTPS)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=True   # REQUIRED on Render
+)
+
 # ---------------- DATABASE (RENDER / POSTGRES READY) ----------------
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# Fix old postgres:// URLs if any
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# PostgreSQL on Render, SQLite locally
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL or "sqlite:///payroll_hr.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -131,11 +136,15 @@ def login():
         u = request.form.get("username")
         p = request.form.get("password")
         user = Admin.query.filter_by(username=u).first()
+
+        # 🔴 FIX: remember=True keeps session alive
         if user and user.password_hash == hash_password(p):
-            login_user(user)
+            login_user(user, remember=True)
             log_action(user.username, "login")
             return redirect(url_for("index"))
+
         flash("Invalid credentials", "danger")
+
     return render_template("login.html")
 
 @app.route("/logout")
@@ -174,4 +183,4 @@ def status():
 
 # ---------------- ENTRY POINT ----------------
 # ❌ DO NOT USE app.run()
-# Gunicorn will start this app
+# Gunicorn will start the app
